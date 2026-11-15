@@ -1,0 +1,39 @@
+name: Build debug APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.13
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ELIOS_NOTES-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+      # Room writes the exported schema JSON here; commit it so migrations can be tested later.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: room-schemas
+          path: app/schemas/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-reports
+          path: app/build/reports/
+          if-no-files-found: ignore
